@@ -8,9 +8,12 @@
 import SpriteKit
 import GameplayKit
 
-class GameScene: SKScene {
+class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var sprite : SKSpriteNode!
+    
+    let spriteCategory1: UInt32 = 0b1
+    let spriteCategory2: UInt32 = 0b10
     
     override func didMove(to view: SKView) {
         sprite = SKSpriteNode(imageNamed: "PlayerSprite") // Initialize the player sprite with the image "PlayerSprite"
@@ -30,6 +33,22 @@ class GameScene: SKScene {
         let movement = SKAction.sequence([downMovement, upMovement]) // Combine the two movement actions into a sequence
         // Run the movement action on the opponent sprite in an infinite loop
         opponentSprite.run(SKAction.repeatForever(movement))
+        
+        sprite.physicsBody = SKPhysicsBody(circleOfRadius: 50) // Set the player sprite's physics body to a circle with a radius of 50
+        opponentSprite.physicsBody = SKPhysicsBody(circleOfRadius: 50) // Set the opponent sprite's physics body to a circle with a radius of 50
+        
+        sprite.physicsBody?.categoryBitMask = spriteCategory1
+        sprite.physicsBody?.contactTestBitMask = spriteCategory1
+        sprite.physicsBody?.collisionBitMask = spriteCategory1
+        opponentSprite.physicsBody?.categoryBitMask = spriteCategory1
+        opponentSprite.physicsBody?.contactTestBitMask = spriteCategory1
+        opponentSprite.physicsBody?.collisionBitMask = spriteCategory1
+        
+        self.physicsWorld.contactDelegate = self
+    }
+    
+    func didBegin(_ contact: SKPhysicsContact) {
+        print("Contact detected")
     }
     
     
