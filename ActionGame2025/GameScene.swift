@@ -49,13 +49,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Offset between opponent stop position and player position
     // Positive values make the opponent stop above the player level
     // Negative values make the opponent go slightly below player level
-    private let opponentYOffset: CGFloat = -40    // Opponent sprites
+    private let opponentYOffset: CGFloat = -40
     private var opponentNormalTexture: SKTexture!
-    private var opponentDeadTexture: SKTexture!//
+    private var opponentDeadTexture: SKTexture!
+    
+    var isGamePaused = false
+    var pauseButton: SKLabelNode!
+    var resumeButton: SKLabelNode?
+    var pauseOverlay: SKShapeNode?
     
     override func didMove(to view: SKView) {
-        // Disable gravity as we're manually controlling movement
-        physicsWorld.gravity = CGVector(dx: 0, dy: 0)
         physicsWorld.contactDelegate = self
         
         // Load player textures
@@ -80,7 +83,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Initialize the player sprite with idle texture
         sprite = SKSpriteNode(texture: playerIdleTexture)
         sprite.size = CGSize(width: 200, height: 200)
-        // Position at bottom with padding
+        
+        // Position player at the bottom with padding
         sprite.position = CGPoint(
             x: size.width / 2,
             y: sprite.size.height/2 + bottomPadding
@@ -127,6 +131,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             y: size.height - 50
         )
         addChild(hitCounterLabel)
+        
+        setupPauseButton()
     }
     
     func startOpponentMovement() {
@@ -227,10 +233,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
         
-        // Important: Stop all actions immediately
+        // Stop all actions immediately
         opponentSprite.removeAllActions()
         
-        // Add a visual feedback for collision (optional)
+        // Add a visual feedback for collision
         let flash = SKAction.sequence([
             SKAction.fadeAlpha(to: 0.5, duration: 0.1),
             SKAction.fadeAlpha(to: 1.0, duration: 0.1)
@@ -282,6 +288,87 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         self.view?.presentScene(newScene, transition: SKTransition.fade(withDuration: 1.0))
     }
     
+    func setupPauseButton() {
+        pauseButton = SKLabelNode(fontNamed: "Arial")
+        pauseButton.text = "PAUSE"
+        pauseButton.fontSize = 24
+        pauseButton.fontColor = SKColor.white
+        
+        // Position it in the middle top of the screen
+        pauseButton.position = CGPoint(
+            x: size.width / 2,
+            y: size.height - 100
+        )
+        pauseButton.verticalAlignmentMode = .center
+        pauseButton.horizontalAlignmentMode = .center
+        
+        // Get the approximate text size
+        let textWidth = pauseButton.frame.width
+        let textHeight = pauseButton.frame.height
+        
+        // Add padding
+        let horizontalPadding: CGFloat = 30 // 15 points on each side
+        let verticalPadding: CGFloat = 20   // 10 points on top and bottom
+        
+        // Create background with padding
+        let backgroundWidth = textWidth + horizontalPadding
+        let backgroundHeight = textHeight + verticalPadding
+        
+        let background = SKShapeNode(rectOf: CGSize(width: backgroundWidth, height: backgroundHeight), cornerRadius: 10)
+        background.fillColor = SKColor.darkGray
+        background.alpha = 0.7
+        background.position = pauseButton.position
+        background.zPosition = 10
+        background.name = "pauseButtonBackground"
+        
+        // Make sure the text is on top of the background
+        pauseButton.zPosition = 11
+        pauseButton.name = "pauseButton"
+        
+        addChild(background)
+        addChild(pauseButton)
+    }
+    
+    func togglePause() {
+        isGamePaused = !isGamePaused
+        
+        if isGamePaused {
+            // Pause the game
+            self.speed = 0
+            
+            // Create semi-transparent overlay
+            let overlay = SKShapeNode(rectOf: CGSize(width: size.width, height: size.height))
+            overlay.fillColor = SKColor.black
+            overlay.alpha = 0.5
+            overlay.position = CGPoint(x: size.width/2, y: size.height/2)
+            overlay.zPosition = 100
+            overlay.name = "pauseOverlay"
+            addChild(overlay)
+            pauseOverlay = overlay
+            
+            // Create resume button
+            let resume = SKLabelNode(fontNamed: "Arial")
+            resume.text = "Resume"
+            resume.fontSize = 30
+            resume.fontColor = SKColor.white
+            resume.position = CGPoint(x: size.width/2, y: size.height/2)
+            resume.zPosition = 101
+            resume.name = "resumeButton"
+            addChild(resume)
+            resumeButton = resume
+        } else {
+            // Resume the game
+            self.speed = 1
+            
+            // Remove overlay and resume button
+            pauseOverlay?.removeFromParent()
+            pauseOverlay = nil
+            resumeButton?.removeFromParent()
+            resumeButton = nil
+        }
+    }
+
+    
     func touchDown(atPoint pos: CGPoint) {
         // Not used in this implementation
     }
@@ -308,22 +395,49 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
             return
         }
-        for t in touches { self.touchDown(atPoint: t.location(in: self)) }
+        
+        // Handle pause and resume button touches
+        for t in touches {
+            let location = t.location(in: self)
+            
+            // Check if pause button was tapped
+            if !isGamePaused && pauseButton.contains(location) {
+                togglePause()
+                return
+            }
+            
+            // Check if resume button was tapped
+            if isGamePaused, let resumeButton = resumeButton, resumeButton.contains(location) {
+                togglePause()
+                return
+            }
+        }
+        
+        // Only process gameplay touches if not paused
+        if !isGamePaused {
+            for t in touches { self.touchDown(atPoint: t.location(in: self)) }
+        }
     }
-    
+
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchMoved(toPoint: t.location(in: self)) }
+        // Only process gameplay touches if not paused
+        if !isPaused {
+            for t in touches { self.touchMoved(toPoint: t.location(in: self)) }
+        }
     }
     
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
+        // Only process gameplay touches if not paused
+        if !isGamePaused {
+            for t in touches { self.touchUp(atPoint: t.location(in: self)) }
+        }
     }
     
-    override func touchesCancelled(
-        _ touches: Set<UITouch>,
-        with event: UIEvent?
-    ) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        // Only process gameplay touches if not paused
+        if !isGamePaused {
+            for t in touches { self.touchUp(atPoint: t.location(in: self)) }
+        }
     }
     
     func movePlayerWithVelocity(to xPosition: CGFloat) {
@@ -337,24 +451,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func updatePlayerState(_ newState: PlayerState) {
         // Only update if the state is changing
         guard newState != playerState else { return }
-        
-        // Update the state
         playerState = newState
         
         // Apply the appropriate texture/animation based on state
         switch playerState {
         case .idle:
-            // Stop any running animations
             sprite.removeAllActions()
             sprite.texture = playerIdleTexture
         case .moving:
-            // Start the moving animation
             sprite.run(playerMovingAnimation, withKey: "movingAnimation")
         }
     }
     
     override func update(_ currentTime: TimeInterval) {
-        if isGameOver { return }
+        if isGameOver || isPaused { return }
         
         // Calculate delta time
         let dt: TimeInterval
