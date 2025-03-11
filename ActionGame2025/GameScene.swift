@@ -10,45 +10,68 @@ import GameplayKit
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
     
-    var sprite : SKSpriteNode!
+    var sprite: SKSpriteNode! // Player sprite
+    var opponentSprite: SKSpriteNode! // Opponent sprite (declared at the class level)
+    var hitCounterLabel: SKLabelNode! // Label to track number of hits
+    var hitCount: Int = 0 // Variable to store the number of hits
     
-    let spriteCategory1: UInt32 = 0b1
-    let spriteCategory2: UInt32 = 0b10
+    let spriteCategory1: UInt32 = 0b1 // Category for player sprite
+    let spriteCategory2: UInt32 = 0b10 // Category for opponent sprite
     
     override func didMove(to view: SKView) {
-        sprite = SKSpriteNode(imageNamed: "PlayerSprite") // Initialize the player sprite with the image "PlayerSprite"
-        sprite.position = CGPoint(x: size.width / 2, y: size.height / 2) // Set the player's starting position to the center of the screen
-        sprite.size = CGSize(width: 50, height: 50) // Set the player's size
-        addChild(sprite) // Add the player sprite to the scene
+        sprite = SKSpriteNode(imageNamed: "PlayerSprite") // Initialize the player sprite
+        sprite.position = CGPoint(x: size.width / 2, y: size.height / 2) // Set position
+        sprite.size = CGSize(width: 200, height: 200) // Set size
+        addChild(sprite) // Add to scene
         
-        let opponentSprite = SKSpriteNode(imageNamed: "OpponentSprite")
+        opponentSprite = SKSpriteNode(imageNamed: "OpponentSprite")
         opponentSprite.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        opponentSprite.size = CGSize(width: 50, height: 50)
+        opponentSprite.size = CGSize(width: 100, height: 100)
         addChild(opponentSprite)
+
+        moveOpponent() // Start opponent movement
         
-        // Define a movement action to move the opponent down to the bottom of the screen
-        let downMovement = SKAction.move(to: CGPoint(x: size.width / 2, y: 0), duration: 1.75)
-        // Define a movement action to move the opponent back up to the top of the screen
-        let upMovement = SKAction.move(to: CGPoint(x: size.width / 2, y: size.height), duration: 1.5)
-        let movement = SKAction.sequence([downMovement, upMovement]) // Combine the two movement actions into a sequence
-        // Run the movement action on the opponent sprite in an infinite loop
-        opponentSprite.run(SKAction.repeatForever(movement))
-        
-        sprite.physicsBody = SKPhysicsBody(circleOfRadius: 50) // Set the player sprite's physics body to a circle with a radius of 50
-        opponentSprite.physicsBody = SKPhysicsBody(circleOfRadius: 50) // Set the opponent sprite's physics body to a circle with a radius of 50
+        hitCounterLabel = SKLabelNode(fontNamed: "Arial")
+        hitCounterLabel.text = "Hits: 0"
+        hitCounterLabel.fontSize = 24
+        hitCounterLabel.fontColor = SKColor.white
+        hitCounterLabel.position = CGPoint(x: size.width / 2, y: size.height - 50)
+        addChild(hitCounterLabel)
+
+        sprite.physicsBody = SKPhysicsBody(circleOfRadius: 50) // Assign physics body
+        opponentSprite.physicsBody = SKPhysicsBody(circleOfRadius: 50) // Assign physics body
         
         sprite.physicsBody?.categoryBitMask = spriteCategory1
         sprite.physicsBody?.contactTestBitMask = spriteCategory1
         sprite.physicsBody?.collisionBitMask = spriteCategory1
+
         opponentSprite.physicsBody?.categoryBitMask = spriteCategory1
         opponentSprite.physicsBody?.contactTestBitMask = spriteCategory1
         opponentSprite.physicsBody?.collisionBitMask = spriteCategory1
         
-        self.physicsWorld.contactDelegate = self
+        self.physicsWorld.contactDelegate = self // Assign physics contact delegate
     }
     
     func didBegin(_ contact: SKPhysicsContact) {
-        print("Contact detected")
+        // Check if the player and opponent have collided
+        if (contact.bodyA.categoryBitMask == spriteCategory1 && contact.bodyB.categoryBitMask == spriteCategory1) ||
+           (contact.bodyB.categoryBitMask == spriteCategory1 && contact.bodyA.categoryBitMask == spriteCategory1) {
+            hitCount += 1
+            hitCounterLabel.text = "Hits: \(hitCount)"
+            print("Hit detected! Total hits: \(hitCount)")
+        }
+    }
+    
+    
+    func moveOpponent() {
+        let randomX = GKRandomSource.sharedRandom().nextInt(upperBound: Int(size.width))
+        let randomY = GKRandomSource.sharedRandom().nextInt(upperBound: Int(size.height))
+        let movement = SKAction.move(to: CGPoint(x: randomX, y: randomY), duration: 1)
+        
+        // Move opponent and recursively call moveOpponent to keep moving
+        opponentSprite.run(movement, completion: { [unowned self] in
+            self.moveOpponent()
+        })
     }
     
     
