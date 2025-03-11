@@ -58,6 +58,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var resumeButton: SKLabelNode?
     var pauseOverlay: SKShapeNode?
     
+    private let horizontalPadding: CGFloat = 150
+    
     override func didMove(to view: SKView) {
         physicsWorld.contactDelegate = self
         
@@ -140,7 +142,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         opponentSprite.texture = opponentNormalTexture
         
         // Reset position to top with random X coordinate
-        let randomX = CGFloat.random(in: 50...(size.width - 50))
+        let randomX = CGFloat.random(in: horizontalPadding...(size.width - horizontalPadding))
         opponentSprite.position = CGPoint(
             x: randomX,
             y: size.height + opponentSprite.size.height
@@ -441,10 +443,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func movePlayerWithVelocity(to xPosition: CGFloat) {
-        // Set the target X position
-        targetX = xPosition
-        
-        // Change to moving state
+        let clampedX = min(max(xPosition, horizontalPadding), size.width - horizontalPadding)
+        targetX = clampedX
         updatePlayerState(.moving)
     }
     
@@ -542,8 +542,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             // Apply velocity to position
             let newX = sprite.position.x + playerVelocity * CGFloat(dt)
+            let clampedNewX = min(max(newX, horizontalPadding), size.width - horizontalPadding)
             sprite.position = CGPoint(
-                x: newX,
+                x: clampedNewX,
                 y: sprite.size.height/2 + bottomPadding
             )
         } else {
