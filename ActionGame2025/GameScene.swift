@@ -1,4 +1,3 @@
-
 //  GameScene.swift
 //  ActionGame2025
 //
@@ -14,6 +13,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var opponentSprite: SKSpriteNode! // Opponent sprite
     var hitCounterLabel: SKLabelNode! // Label to track number of hits
     var hitCount: Int = 0 // Variable to store the number of hits
+    
+    var isGameOver = false
+    var gameOverLabel: SKLabelNode?
+    var restartButton: SKLabelNode?
     
     let playerCategory: UInt32 = 0x1 << 0 // Category for player sprite (1)
     let opponentCategory: UInt32 = 0x1 << 1 // Category for opponent sprite (2)
@@ -175,17 +178,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Repeat the flash a few times
         let flashRepeat = SKAction.repeat(flash, count: 3)
         
-        // After flashing, reset opponent and start new movement
-        let resetAction = SKAction.run { [weak self] in
+        // Update the score
+        hitCount -= 1
+        hitCounterLabel.text = "Score: \(hitCount)"
+        
+        // After flashing is complete, check for game over
+        let checkGameOver = SKAction.run { [weak self] in
             guard let self = self else { return }
-            self.startOpponentMovement()
+            if self.hitCount < 0 {
+                self.gameOver()
+            } else {
+                // Only start new movement if the game isn't over
+                self.startOpponentMovement()
+            }
         }
         
-        // Run the sequence
-        let flashAndResetSequence = SKAction.sequence(
-            [flashRepeat, resetAction]
-        )
-        opponentSprite.run(flashAndResetSequence)
+        // Run the sequence: first flash, then check for game over
+        let completeSequence = SKAction.sequence([flashRepeat, checkGameOver])
+        opponentSprite.run(completeSequence)
     }
     
     func didBegin(_ contact: SKPhysicsContact) {
@@ -212,6 +222,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         hitCounterLabel.text = "Score: \(hitCount)"
         print("Hit detected! Total Score: \(hitCount)")
         
+        if hitCount < 0 {
+            gameOver()
+            return
+        }
+        
         // Important: Stop all actions immediately
         opponentSprite.removeAllActions()
         
@@ -234,6 +249,39 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         opponentSprite.run(SKAction.sequence([resetDelay, resetAction]))
     }
     
+    func gameOver() {
+        isGameOver = true
+        // Stop opponent movement
+        opponentSprite.removeAllActions()
+        
+        // Create and show 'Game Over' label
+        gameOverLabel = SKLabelNode(text: "Game Over")
+        gameOverLabel?.fontName = "Arial"
+        gameOverLabel?.fontSize = 40
+        gameOverLabel?.fontColor = SKColor.red
+        gameOverLabel?.position = CGPoint(x: size.width / 2, y: size.height / 2 + 20)
+        if let gameOverLabel = gameOverLabel {
+            addChild(gameOverLabel)
+        }
+        
+        // Create and show 'Restart' button underneath the Game Over label
+        restartButton = SKLabelNode(text: "Restart")
+        restartButton?.fontName = "Arial"
+        restartButton?.fontSize = 30
+        restartButton?.fontColor = SKColor.white
+        restartButton?.position = CGPoint(x: size.width / 2, y: size.height / 2 - 40)
+        if let restartButton = restartButton {
+            addChild(restartButton)
+        }
+    }
+    
+    func restartGame() {
+        // Create a new instance of the game scene and present it
+        let newScene = GameScene(size: self.size)
+        newScene.scaleMode = self.scaleMode
+        self.view?.presentScene(newScene, transition: SKTransition.fade(withDuration: 1.0))
+    }
+    
     func touchDown(atPoint pos: CGPoint) {
         // Not used in this implementation
     }
@@ -251,6 +299,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if isGameOver {
+            for t in touches {
+                let location = t.location(in: self)
+                if let restartButton = restartButton, restartButton.contains(location) {
+                    restartGame()
+                }
+            }
+            return
+        }
         for t in touches { self.touchDown(atPoint: t.location(in: self)) }
     }
     
@@ -297,6 +354,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func update(_ currentTime: TimeInterval) {
+        if isGameOver { return }
+        
         // Calculate delta time
         let dt: TimeInterval
         if lastUpdateTime == 0 {
