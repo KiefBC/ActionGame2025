@@ -13,10 +13,23 @@ class GameScene: SKScene {
     var sprite : SKSpriteNode!
     
     override func didMove(to view: SKView) {
-        sprite = SKSpriteNode(imageNamed: "PlayerSprite")
-        sprite.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        sprite.size = CGSize(width: 50, height: 50)
-        addChild(sprite)
+        sprite = SKSpriteNode(imageNamed: "PlayerSprite") // Initialize the player sprite with the image "PlayerSprite"
+        sprite.position = CGPoint(x: size.width / 2, y: size.height / 2) // Set the player's starting position to the center of the screen
+        sprite.size = CGSize(width: 50, height: 50) // Set the player's size
+        addChild(sprite) // Add the player sprite to the scene
+        
+        let opponentSprite = SKSpriteNode(imageNamed: "OpponentSprite")
+        opponentSprite.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        opponentSprite.size = CGSize(width: 50, height: 50)
+        addChild(opponentSprite)
+        
+        // Define a movement action to move the opponent down to the bottom of the screen
+        let downMovement = SKAction.move(to: CGPoint(x: size.width / 2, y: 0), duration: 1.75)
+        // Define a movement action to move the opponent back up to the top of the screen
+        let upMovement = SKAction.move(to: CGPoint(x: size.width / 2, y: size.height), duration: 1.5)
+        let movement = SKAction.sequence([downMovement, upMovement]) // Combine the two movement actions into a sequence
+        // Run the movement action on the opponent sprite in an infinite loop
+        opponentSprite.run(SKAction.repeatForever(movement))
     }
     
     
